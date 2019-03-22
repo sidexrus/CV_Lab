@@ -10,16 +10,19 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
 
-        BufferedImage bufimg = ImageIO.read(new File("materials//photo.png"));
+        BufferedImage source = ImageIO.read(new File("materials//photo.png"));
         //BufferedImage bufimg = ImageIO.read(new File("materials//sob.jpg"));
-        Image img = new Image(bufimg);
-        bufimg = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
-        //double[] kernel = {1,2,1,2,4,2,1,2,1};
-        //bufimg.getRaster().setSamples(0,0, img.width, img.height,0, img.Convolution(kernel, 3 , 3));
+        Image src = new Image(ImageIO.read(new File("materials//photo.png")));
+        Image img = new Image(ImageIO.read(new File("materials//sob.jpg")));
+        BufferedImage bufimg = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
         //bufimg.getRaster().setSamples(0,0, img.width, img.height,0, img.Sobel());
-        bufimg.getRaster().setSamples(0,0, img.getWidth(), img.getHeight(),0, img.GaussianBlur(5,3));
-        //bufimg.getRaster().setSamples(0,0, img.width, img.height,0, img.SeparableFilter(new double[]{1,2,1}, new double[]{1,2,1}));
+        //bufimg.getRaster().setSamples(0,0, img.getWidth(), img.getHeight(),0, img.GaussianBlur(5,3));
+        //img.GaussianBlur(2);
+        img.DerivativeY();
+        ImagePyramid pyr = new ImagePyramid(src);
+        pyr.CreatePyramid(5,2,0.5, 1);
+        pyr.Save_Pyramid();
         new Gui().show(img.getImage());
-        new Gui().show(bufimg);
+        //new Gui().show(source);
     }
 }

@@ -42,6 +42,13 @@ public class Image {
         return  bufimg;
     }
 
+    public BufferedImage deepCopy() {
+        ColorModel cm = bufimg.getColorModel();
+        boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();
+        WritableRaster raster = bufimg.copyData(null);
+        return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
+    }
+
     public int[] ImageSupplement (int[] img_matrix, int kernel_w, int kernel_h) {
         int res_width = width + kernel_w - 1;
         int res_height = height + kernel_h - 1;
@@ -96,20 +103,19 @@ public class Image {
                 if (value > 255) value = 255;
                 res_matrix[counter++] = (int)value;
             }
-
+        matrix = res_matrix;
+        bufimg.getRaster().setSamples(0,0, width, height,0, matrix);
         return  res_matrix;
     }
 
-    public int[] DerivativeX()
-    {
-        double[] kernel = { -1, 0, 1,
-                            -2, 0, 2,
-                            -1, 0, 1};
+    public int[] DerivativeX() {
+        double[] kernel = { 1, 0, -1,
+                            2, 0, -2,
+                            1, 0, -1};
         return Convolution(kernel, 3, 3);
     }
 
-    public int[] DerivativeY()
-    {
+    public int[] DerivativeY() {
         double[] kernel = { 1, 2, 1,
                             0, 0, 0,
                             -1, -2, -1};
@@ -151,11 +157,12 @@ public class Image {
                 if (value > 255) value = 255;
                 res_matrix[counter++] = value;
             }
+        matrix = res_matrix;
+        bufimg.getRaster().setSamples(0,0, width, height,0, matrix);
         return  res_matrix;
     }
 
-    public int[] SeparableFilter(double[] row, double[] column)
-    {
+    public int[] SeparableFilter(double[] row, double[] column) {
         int length = row.length;
         int size = row.length/2;
         int[] augmented_img = ImageSupplement(matrix, length, length);
@@ -194,7 +201,10 @@ public class Image {
         return  res_matrix;
     }
 
-    public int[] GaussianBlur(int size, int sigma){
+    public int[] GaussianBlur(double sigma){
+        int size = (int)Math.ceil((double)sigma*2*3);
+        if(size%2 == 0)
+            size++;
         double[] row = new double[size];
         double[] column = new double[size];
         int s = size/2;
@@ -204,6 +214,27 @@ public class Image {
             row[counter] = f/Math.sqrt(2*Math.PI*sigma);
             column[counter++] = f/Math.sqrt(2*Math.PI*sigma);
         }
+        matrix = SeparableFilter(row, column);
+        bufimg.getRaster().setSamples(0,0, width, height,0, matrix);
+
         return SeparableFilter(row, column);
+    }
+
+    public int[] Downsampling (){
+        int res_width = (int)Math.round((double)width/2);
+        int res_height = (int)Math.round((double)height/2);
+        int[] result = new int[res_width*res_height];
+        int counter = 0;
+        for (int i=0; i<height; i+=2)
+            for (int j=0; j<width; j+=2)
+                result[counter++] = matrix[i*width+j];
+
+        matrix = result;
+        width = res_width;
+        height = res_height;
+        bufimg = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+        bufimg.getRaster().setSamples(0,0, res_width, res_height,0, matrix);
+
+        return result;
     }
 }
