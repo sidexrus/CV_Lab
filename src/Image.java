@@ -6,12 +6,12 @@ import java.io.IOException;
 
 public class Image {
 
-    private BufferedImage bufimg;
+    public BufferedImage bufimg;
     private int height;
     private int width;
-    private int[] matrix;
+    public int[] matrix;
 
-    public Image(BufferedImage img) throws IOException {
+    public Image(BufferedImage img) {
         height = img.getHeight();
         width = img.getWidth();
         matrix = new int[height*width];
@@ -218,6 +218,28 @@ public class Image {
         bufimg.getRaster().setSamples(0,0, width, height,0, matrix);
 
         return SeparableFilter(row, column);
+    }
+
+    public double[] GaussKernel(double sigma){
+        int size = (int)Math.ceil((double)sigma*2*3);
+        if(size%2 == 0)
+            size++;
+        double[] matrix = new double[size*size];
+        int s = size/2;
+        int k=0;
+        double sum=0;
+        for(int x=-s; x<=s; x++){
+            for(int y=-s; y<=s; y++) {
+                double f = Math.pow(Math.E, (double)-(x*x+y*y)/(2*sigma*sigma));
+                matrix[k] = f/(2*Math.PI*sigma*sigma);
+                sum+=matrix[k];
+                k++;
+            }
+        }
+        for(int i=0; i<size*size; i++)
+            matrix[i]/=sum;
+
+        return  matrix;
     }
 
     public int[] Downsampling (){
