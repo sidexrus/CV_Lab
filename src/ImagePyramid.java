@@ -41,7 +41,8 @@ public class ImagePyramid {
                 Sigma_Scale = sigma1 * Math.pow(k, j + 1);
                 double deltaSigma = getDeltaSigma(sigmaScalePrev, Sigma_Scale);
                 Sigma_Eff = Sigma_Scale * Math.pow(2, i);
-                SourceImage.GaussianBlur(deltaSigma);
+                //SourceImage.GaussianBlur(deltaSigma);
+                L(deltaSigma);
                 Pyramid.add(new Item(SourceImage.deepCopy(), Sigma_Scale, Sigma_Eff));
             }
             SourceImage.Downsampling();

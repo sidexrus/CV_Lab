@@ -9,12 +9,14 @@ public class Image {
     public BufferedImage bufimg;
     private int height;
     private int width;
-    public int[] matrix;
+    public double[] matrix;
+    public int[] gray;
 
     public Image(BufferedImage img) {
         height = img.getHeight();
         width = img.getWidth();
-        matrix = new int[height*width];
+        matrix = new double[height*width];
+        gray = new int[height*width];
 
         int r, g, b, color;
         for (int i=0; i<height; i++)
@@ -23,11 +25,12 @@ public class Image {
                 r = (color & 0xff0000) >> 16;
                 g = (color & 0xff00) >> 8;
                 b = color & 0xff;
-                matrix[i*width+j] = (int)(0.299*r + 0.587*g + 0.114*b);
-            }
+                matrix[i*width+j] = (double)(0.299*r + 0.587*g + 0.114*b)/255;
+                gray[i*width+j] = (int)(0.299*r + 0.587*g + 0.114*b);
 
+            }
         bufimg = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-        bufimg.getRaster().setSamples(0,0, width, height,0, matrix);
+        bufimg.getRaster().setSamples(0,0, width, height,0, gray);
     }
 
     public int getWidth() {
@@ -49,11 +52,11 @@ public class Image {
         return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
     }
 
-    public int[] ImageSupplement (int[] img_matrix, int kernel_w, int kernel_h) {
+    public double[] ImageSupplement (double[] img_matrix, int kernel_w, int kernel_h) {
         int res_width = width + kernel_w - 1;
         int res_height = height + kernel_h - 1;
         int size =  res_height * res_width;
-        int[] res_matrix = new int[size];
+        double[] res_matrix = new double[size];
         for(int i=0;i<size; i++)
             res_matrix[i] = 0;
         int counter = 0;
@@ -76,11 +79,11 @@ public class Image {
         return res_matrix;
     }
 
-    public int[] Convolution(double[] kernel, int kernel_w, int kernel_h){
-        int[] augmented_img = ImageSupplement(matrix, kernel_w, kernel_h);
+    public double[] Convolution(double[] kernel, int kernel_w, int kernel_h){
+        double[] augmented_img = ImageSupplement(matrix, kernel_w, kernel_h);
         int aug_width = width + kernel_w - 1;
         int aug_height = height + kernel_h - 1;
-        int[] res_matrix = new int[width*height];
+        double[] res_matrix = new double[width*height];
         int counter = 0;
         int div=0;
 
@@ -99,36 +102,64 @@ public class Image {
                         value += augmented_img[i * aug_width + j + position]*kernel[kernel_counter++];
                     }
                 if(div != 0) value /= div;
-                if (value < 0) value = 0;
-                if (value > 255) value = 255;
-                res_matrix[counter++] = (int)value;
+                res_matrix[counter++] = (double)value;
             }
-        matrix = res_matrix;
-        bufimg.getRaster().setSamples(0,0, width, height,0, matrix);
+        res_matrix = NormalizeTo255(res_matrix);
+        bufimg.getRaster().setSamples(0,0, width, height,0, res_matrix);
+        matrix = NormalizeTo1(res_matrix.clone());
         return  res_matrix;
     }
 
-    public int[] DerivativeX() {
+    public double[] NormalizeTo255(double[] matrix){
+        double min = 0;
+        double max = 0;
+        boolean f = false;
+
+        for(int i=0; i<width*height; i++){
+            if(min>matrix[i]) min = matrix[i];
+            if(max<matrix[i]) max = matrix[i];
+        }
+
+        double DivDifference = 255/(max - min);
+        if (min < 0) f = true;
+        for(int i=0; i<width*height; i++){
+            if (f) matrix[i] += Math.abs(min);
+            matrix[i] *=DivDifference;
+            if (matrix[i] < 0) matrix[i] = 0;
+            if (matrix[i] > 255) matrix[i] = 255;
+        }
+        //bufimg.getRaster().setSamples(0,0, width, height,0, matrix);
+        return  matrix;
+    }
+
+    public double[] NormalizeTo1(double[] matrix){
+        for(int i=0; i<width*height; i++){
+            matrix[i] /=255;
+        }
+        return  matrix;
+    }
+
+    public double[] DerivativeX() {
         double[] kernel = { 1, 0, -1,
                             2, 0, -2,
                             1, 0, -1};
         return Convolution(kernel, 3, 3);
     }
 
-    public int[] DerivativeY() {
+    public double[] DerivativeY() {
         double[] kernel = { 1, 2, 1,
                             0, 0, 0,
                             -1, -2, -1};
         return Convolution(kernel, 3, 3);
     }
 
-    public int[] Sobel(){
-        int[] augmented_img = ImageSupplement(matrix, 3, 3);
+    public double[] Sobel(){
+        double[] augmented_img = ImageSupplement(matrix, 3, 3);
         int kernel_w = 3;
         int kernel_h = 3;
         int aug_width = width + kernel_w - 1;
         int aug_height = height + kernel_h - 1;
-        int[] res_matrix = new int[width*height];
+        double[] res_matrix = new double[width*height];
         int counter = 0;
 
         double[] kernelx = { 1, 0, -1,
@@ -144,33 +175,34 @@ public class Image {
         for(int i = kh; i < aug_height - kh; i++)
             for(int j = kw; j < aug_width - kw; j++){
                 int kernel_counter = 0;
-                int valuex = 0;
-                int valuey = 0;
+                double valuex = 0;
+                double valuey = 0;
                 for(int ipix = -kh; ipix <= kh; ipix++)
                     for(int jpix = -kw; jpix <= kw; jpix++) {
                         int position = ipix*aug_width + jpix;
                         valuex += augmented_img[i * aug_width + j + position]*kernelx[kernel_counter];
                         valuey += augmented_img[i * aug_width + j + position]*kernely[kernel_counter++];
                     }
-                int value = (int)Math.sqrt(valuex*valuex+valuey*valuey);
-                if (value < 0) value = 0;
-                if (value > 255) value = 255;
+                double value = (double)Math.sqrt(valuex*valuex+valuey*valuey);
+                //if (value < 0) value = 0;
+                //if (value > 255) value = 255;
                 res_matrix[counter++] = value;
             }
-        matrix = res_matrix;
-        bufimg.getRaster().setSamples(0,0, width, height,0, matrix);
+        res_matrix = NormalizeTo255(res_matrix);
+        bufimg.getRaster().setSamples(0,0, width, height,0, res_matrix);
+        matrix = NormalizeTo1(res_matrix.clone());
         return  res_matrix;
     }
 
-    public int[] SeparableFilter(double[] row, double[] column) {
+    public double[] SeparableFilter(double[] row, double[] column) {
         int length = row.length;
         int size = row.length/2;
-        int[] augmented_img = ImageSupplement(matrix, length, length);
+        double[] augmented_img = ImageSupplement(matrix, length, length);
         int aug_width = width + length - 1;
         int aug_height = height + length - 1;
         int counter = 0;
         double div=0;
-        int[] res_matrix = new int[width*height];
+        double[] res_matrix = new double[width*height];
 
         for(double i:row)
             for(double j:column)
@@ -194,14 +226,17 @@ public class Image {
                     valueX = 0;
                 }
                 if(div != 0) value /= div;
-                if (value < 0) value = 0;
-                if (value > 255) value = 255;
-                res_matrix[counter++] = (int)value;
+                //if (value < 0) value = 0;
+                //if (value > 255) value = 255;
+                res_matrix[counter++] = (double) value;
             }
+        res_matrix = NormalizeTo255(res_matrix);
+        bufimg.getRaster().setSamples(0,0, width, height,0, res_matrix);
+        matrix = NormalizeTo1(res_matrix.clone());
         return  res_matrix;
     }
 
-    public int[] GaussianBlur(double sigma){
+    public double[] GaussianBlur(double sigma){
         int size = (int)Math.ceil((double)sigma*2*3);
         if(size%2 == 0)
             size++;
@@ -214,8 +249,8 @@ public class Image {
             row[counter] = f/Math.sqrt(2*Math.PI*sigma);
             column[counter++] = f/Math.sqrt(2*Math.PI*sigma);
         }
-        matrix = SeparableFilter(row, column);
-        bufimg.getRaster().setSamples(0,0, width, height,0, matrix);
+        //matrix = SeparableFilter(row, column);
+        //bufimg.getRaster().setSamples(0,0, width, height,0, matrix);
 
         return SeparableFilter(row, column);
     }
@@ -242,20 +277,23 @@ public class Image {
         return  matrix;
     }
 
-    public int[] Downsampling (){
+    public double[] Downsampling (){
         int res_width = (int)Math.round((double)width/2);
         int res_height = (int)Math.round((double)height/2);
-        int[] result = new int[res_width*res_height];
+        double[] result = new double[res_width*res_height];
         int counter = 0;
-        for (int i=0; i<height; i+=2)
+        for (int i=0; i<height; i+=2){
             for (int j=0; j<width; j+=2)
                 result[counter++] = matrix[i*width+j];
+        }
 
-        matrix = result;
         width = res_width;
         height = res_height;
+        result = NormalizeTo255(result);
         bufimg = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_BYTE_GRAY);
-        bufimg.getRaster().setSamples(0,0, res_width, res_height,0, matrix);
+        bufimg.getRaster().setSamples(0,0, res_width, res_height,0, result);
+
+        matrix = NormalizeTo1(result.clone());
 
         return result;
     }

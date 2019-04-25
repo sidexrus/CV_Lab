@@ -24,6 +24,7 @@ public class InterestPoint {
         Points = new ArrayList<>();
         this.img = img;
     }
+    /*
     public BufferedImage Moravek(double threshold, int radius, int pointsCount) {
         int inc = radius + 1;
         int[] augmented_img = img.ImageSupplement(img.matrix, inc*2+1, inc*2+1);
@@ -93,7 +94,7 @@ public class InterestPoint {
         g.dispose();
         return newImage;
     }
-
+*/
     public ArrayList<Point> anmsFilter(ArrayList<Point> points, int pointsCount) {
         Boolean[] flagUsedPoints = new Boolean[points.size()];
 
@@ -141,7 +142,7 @@ public class InterestPoint {
         }
         return resultPoints;
     }
-
+/*
     public BufferedImage Harris (double threshold, int radius, int pointsCount){
 
         /*
@@ -151,7 +152,7 @@ public class InterestPoint {
         gauss.GaussianBlur(radius/3);
         //Kernel gauss = KernelCreator.getGaussSlowPoke((double)radius / 3);
         //image = ImageConverter.convolution(image, gauss);
-        */
+        *
 
         double[] gauss = img.GaussKernel(radius/3);
 
@@ -173,9 +174,9 @@ public class InterestPoint {
             }
         }
 
-        List<Point> localMaximumPoints = localMaximum(thresholdFilter(image_S, threshold), image_S);
+        //ArrayList<Point> localMaximumPoints = localMaximum(thresholdFilter(image_S, threshold), image_S);
         return anmsFilter(localMaximumPoints, pointsCount);
-    }
+    }*/
 
     public double lambda(int[] image_dx, int[] image_dy, int x, int y, int radius, double[] gauss)
     {
