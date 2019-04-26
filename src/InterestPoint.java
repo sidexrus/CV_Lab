@@ -24,16 +24,16 @@ public class InterestPoint {
         Points = new ArrayList<>();
         this.img = img;
     }
-    /*
+
     public BufferedImage Moravek(double threshold, int radius, int pointsCount) {
         int inc = radius + 1;
-        int[] augmented_img = img.ImageSupplement(img.matrix, inc*2+1, inc*2+1);
+        double[] augmented_img = img.ImageSupplement(img.matrix, inc*2+1, inc*2+1);
         int aug_width = img.getWidth() + inc*2;
         int aug_height = img.getHeight() + inc*2;
 
         for (int y = 0; y < img.getHeight(); y++) {
             for (int x = 0; x < img.getWidth(); x++) {
-                //double[] local_S = new double[8];                  // 8 направлений
+                // 8 направлений
                 ArrayList<Double> local_S = new ArrayList<Double>();
                 for(int i=0; i <8;i++)
                     local_S.add((double)0);
@@ -41,15 +41,15 @@ public class InterestPoint {
                     for (int v = -radius; v < radius; v++) {
                         double[] directDiff = new double[8];
                         //int pixel = img.getPixel(x + u, y + v);
-                        int pixel = augmented_img[(y + inc + v) * aug_width + (x + inc + u)];
-                        directDiff[0] = (double) (pixel - augmented_img[(y + inc + v - 1) * aug_width + (x + inc + u)])/255;
-                        directDiff[1] = (double) (pixel - augmented_img[(y + inc + v + 1) * aug_width + (x + inc + u)])/255;
-                        directDiff[2] = (double) (pixel - augmented_img[(y + inc + v) * aug_width + (x + inc + u + 1)])/255;
-                        directDiff[3] = (double) (pixel - augmented_img[(y + inc + v - 1) * aug_width + (x + inc + u + 1)])/255;
-                        directDiff[4] = (double) (pixel - augmented_img[(y + inc + v + 1) * aug_width + (x + inc + u + 1)])/255;
-                        directDiff[5] = (double) (pixel - augmented_img[(y + inc + v) * aug_width + (x + inc + u - 1)])/255;
-                        directDiff[6] = (double) (pixel - augmented_img[(y + inc + v - 1) * aug_width + (x + inc + u - 1)])/255;
-                        directDiff[7] = (double) (pixel - augmented_img[(y + inc + v + 1) * aug_width + (x + inc + u - 1)])/255;
+                        double pixel = augmented_img[(y + inc + v) * aug_width + (x + inc + u)];
+                        directDiff[0] = pixel - augmented_img[(y + inc + v - 1) * aug_width + (x + inc + u)];
+                        directDiff[1] = pixel - augmented_img[(y + inc + v + 1) * aug_width + (x + inc + u)];
+                        directDiff[2] = pixel - augmented_img[(y + inc + v) * aug_width + (x + inc + u + 1)];
+                        directDiff[3] = pixel - augmented_img[(y + inc + v - 1) * aug_width + (x + inc + u + 1)];
+                        directDiff[4] = pixel - augmented_img[(y + inc + v + 1) * aug_width + (x + inc + u + 1)];
+                        directDiff[5] = pixel - augmented_img[(y + inc + v) * aug_width + (x + inc + u - 1)];
+                        directDiff[6] = pixel - augmented_img[(y + inc + v - 1) * aug_width + (x + inc + u - 1)];
+                        directDiff[7] = pixel - augmented_img[(y + inc + v + 1) * aug_width + (x + inc + u - 1)];
 
                         for (int i = 0; i < 8; i++) {
                             double value = local_S.get(i) + directDiff[i] * directDiff[i];
@@ -82,19 +82,20 @@ public class InterestPoint {
 
         Graphics2D g = newImage.createGraphics();
         g.drawImage(img.bufimg, 0, 0, img.getWidth(), img.getHeight(), null);
-        float[] shtrich = {14, 5};
-        BasicStroke bs =new BasicStroke(2);
+        BasicStroke bs =new BasicStroke(1);
         g.setStroke(bs);
-        g.setPaint(Color.red);
-
         for(int i=0;i<Points.size();i++){
             Point p = Points.get(i);
-            g.draw(new Ellipse2D.Float(p.x, p.y, 1, 1));
+            Ellipse2D.Float circle = new Ellipse2D.Float(p.x, p.y, 3, 3);
+            g.setPaint(Color.white);
+            g.fill(circle);
+            g.setPaint(Color.black);
+            g.draw(circle);
         }
         g.dispose();
         return newImage;
     }
-*/
+
     public ArrayList<Point> anmsFilter(ArrayList<Point> points, int pointsCount) {
         Boolean[] flagUsedPoints = new Boolean[points.size()];
 
@@ -142,30 +143,67 @@ public class InterestPoint {
         }
         return resultPoints;
     }
-/*
-    public BufferedImage Harris (double threshold, int radius, int pointsCount){
 
-        /*
-        BufferedImage g = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
-        g.getRaster().setSamples(0,0, img.getWidth(), img.getHeight(),0, img.matrix);
-        Image gauss = new Image(g);
-        gauss.GaussianBlur(radius/3);
-        //Kernel gauss = KernelCreator.getGaussSlowPoke((double)radius / 3);
-        //image = ImageConverter.convolution(image, gauss);
-        *
+    public BufferedImage HarrisMap (int radius){
+        double[] gauss = img.GaussKernel((double) radius/3);
 
-        double[] gauss = img.GaussKernel(radius/3);
+        double[] image_dx = img.DerivativeX(false);
+        double[] image_dy = img.DerivativeY(false);
 
-        int[] image_dx = img.DerivativeX();
-        int[] image_dy = img.DerivativeY();
+        int inc = radius + 1;
+
+        double[] aug_img_dx = img.ImageSupplement(image_dx, inc*2+1, inc*2+1);
+        double[] aug_img_dy = img.ImageSupplement(image_dy, inc*2+1, inc*2+1);
+        double[] matrix = new double[img.getHeight()*img.getWidth()];
+
         for (int x = 0; x < img.getWidth(); x++)
         {
             for (int y = 0; y < img.getHeight(); y++)
             {
-                Points.add(new Point(x,y, lambda(image_dx, image_dy, x, y, radius, gauss)));
-                //image_S.setPixel(x, y, lambda(image_dx, image_dy, x, y, radius, gauss));
+                double val = lambda(aug_img_dx, aug_img_dy, x, y, radius, gauss);
+                matrix[y*img.getWidth()+x] = val;
             }
         }
+
+        Image img_S = new Image(matrix, img.getHeight(), img.getWidth());
+        img_S.matrix = img_S.NormalizeTo255(img_S.matrix);
+        BufferedImage bufimg = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+        bufimg.getRaster().setSamples(0,0, img.getWidth(), img.getHeight(),0, img_S.matrix);
+
+        return bufimg;
+    }
+
+    public BufferedImage Harris (double threshold, int radius, int pointsCount){
+        double[] gauss = img.GaussKernel((double) radius/3);
+
+        double[] image_dx = img.DerivativeX(false);
+        double[] image_dy = img.DerivativeY(false);
+
+        int inc = radius + 1;
+
+        double[] aug_img_dx = img.ImageSupplement(image_dx, inc*2+1, inc*2+1);
+        double[] aug_img_dy = img.ImageSupplement(image_dy, inc*2+1, inc*2+1);
+        double[] matrix = new double[img.getHeight()*img.getWidth()];
+
+        for (int x = 0; x < img.getWidth(); x++)
+        {
+            for (int y = 0; y < img.getHeight(); y++)
+            {
+                double val = lambda(aug_img_dx, aug_img_dy, x, y, radius, gauss);
+                Points.add(new Point(x, y, val));
+                matrix[y*img.getWidth()+x] = val;
+            }
+        }
+
+        /*
+        Points.sort(new Comparator<Point>() {
+            @Override
+            public int compare(Point o1, Point o2) {
+                if (o1.value == o2.value) return 0;
+                else if (o1.value< o2.value) return 1;
+                else return -1;
+            }
+        });*/
 
         for(int i=0; i<Points.size(); i++){
             if(Points.get(i).value < threshold){
@@ -174,12 +212,35 @@ public class InterestPoint {
             }
         }
 
-        //ArrayList<Point> localMaximumPoints = localMaximum(thresholdFilter(image_S, threshold), image_S);
-        return anmsFilter(localMaximumPoints, pointsCount);
-    }*/
+        Image img_S = new Image(matrix, img.getHeight(), img.getWidth());
 
-    public double lambda(int[] image_dx, int[] image_dy, int x, int y, int radius, double[] gauss)
+        ArrayList<Point> localMaximumPoints = localMaximum(Points, img_S);
+        Points = anmsFilter(localMaximumPoints, pointsCount);
+
+        BufferedImage newImage = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = newImage.createGraphics();
+        g.drawImage(img.bufimg, 0, 0, img.getWidth(), img.getHeight(), null);
+        BasicStroke bs =new BasicStroke(1);
+        g.setStroke(bs);
+        for(int i=0;i<Points.size();i++){
+            Point p = Points.get(i);
+            Ellipse2D.Float circle = new Ellipse2D.Float(p.x, p.y, 3, 3);
+            g.setPaint(Color.white);
+            g.fill(circle);
+            g.setPaint(Color.black);
+            g.draw(circle);
+        }
+        g.dispose();
+        return newImage;
+    }
+
+    public double lambda(double[] image_dx, double[] image_dy, int x, int y, int radius, double[] gauss)
     {
+        int inc = radius + 1;
+
+        int aug_width = img.getWidth() + inc*2;
+        int aug_height = img.getHeight() + inc*2;
+
         double A = 0, B = 0, C = 0;
         int k = 0, q = 0;
         int g_width = (int)Math.sqrt(gauss.length);
@@ -187,8 +248,10 @@ public class InterestPoint {
         {
             for (int j = y - radius; j < y + radius; j++)
             {
-                int curA = image_dx[j*img.getHeight() + i];
-                int curB = image_dy[j*img.getHeight() + i];
+                //double curA = image_dx[j*img.getHeight() + i];
+                //double curB = image_dy[j*img.getHeight() + i];
+                double curA = image_dx[(j+inc)*aug_width + i+inc];
+                double curB = image_dy[(j+inc)*aug_width + i+inc];
                 A += curA * curA * gauss[q*g_width + k];
                 B += curA * curB * gauss[q*g_width + k];
                 C += curB * curB * gauss[q*g_width + k];
@@ -198,5 +261,42 @@ public class InterestPoint {
             q++;
         }
         return ((A * C - B * B) - 0.05 * (A + C) * (A + C)); //вариант оригинального Харриса
+    }
+
+    public ArrayList<Point> localMaximum(ArrayList<Point> points, Image image_S)
+    {
+        ArrayList<Point> result = new ArrayList<Point>();
+        int radius = 2;
+
+        //Смотрим интенсивность всех точек в окрестности
+        //c заданным радиусом
+        for (int i = 0; i < points.size(); i++)
+        {
+            Point p1 = points.get(i);
+            boolean flagMaximum = true;
+
+            for (int j = -radius; j <= radius; ++j)
+            {
+                for (int k = -radius; k <= radius; ++k)
+                {
+                    if (j == 0 && k == 0)
+                    {
+                        continue;
+                    }
+
+                    if (image_S.GetPixel(p1.x + j, p1.y + k) >= p1.value)
+                    {
+                        flagMaximum = false;
+                        break;
+                    }
+                }
+            }
+
+            if (flagMaximum == true)
+            {
+                result.add(p1);
+            }
+        }
+        return result;
     }
 }

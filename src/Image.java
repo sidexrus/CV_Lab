@@ -33,6 +33,20 @@ public class Image {
         bufimg.getRaster().setSamples(0,0, width, height,0, gray);
     }
 
+    public Image(double[] matr, int height, int width) {
+        matrix = matr;
+        this.height = height;
+        this.width = width;
+    }
+
+    public void SetPixel(int x, int y, double value){
+        matrix[y*width+x] = value;
+    }
+
+    public double GetPixel(int x, int y){
+        return matrix[y*width+x];
+    }
+
     public int getWidth() {
         return width;
     }
@@ -79,7 +93,7 @@ public class Image {
         return res_matrix;
     }
 
-    public double[] Convolution(double[] kernel, int kernel_w, int kernel_h){
+    public double[] Convolution(double[] kernel, int kernel_w, int kernel_h, boolean norm){
         double[] augmented_img = ImageSupplement(matrix, kernel_w, kernel_h);
         int aug_width = width + kernel_w - 1;
         int aug_height = height + kernel_h - 1;
@@ -104,9 +118,11 @@ public class Image {
                 if(div != 0) value /= div;
                 res_matrix[counter++] = (double)value;
             }
-        res_matrix = NormalizeTo255(res_matrix);
-        bufimg.getRaster().setSamples(0,0, width, height,0, res_matrix);
-        matrix = NormalizeTo1(res_matrix.clone());
+        if(norm) {
+            res_matrix = NormalizeTo255(res_matrix);
+            bufimg.getRaster().setSamples(0, 0, width, height, 0, res_matrix);
+            matrix = NormalizeTo1(res_matrix.clone());
+        }
         return  res_matrix;
     }
 
@@ -139,18 +155,18 @@ public class Image {
         return  matrix;
     }
 
-    public double[] DerivativeX() {
+    public double[] DerivativeX(boolean norm) {
         double[] kernel = { 1, 0, -1,
                             2, 0, -2,
                             1, 0, -1};
-        return Convolution(kernel, 3, 3);
+        return Convolution(kernel, 3, 3, norm);
     }
 
-    public double[] DerivativeY() {
+    public double[] DerivativeY(boolean norm) {
         double[] kernel = { 1, 2, 1,
                             0, 0, 0,
                             -1, -2, -1};
-        return Convolution(kernel, 3, 3);
+        return Convolution(kernel, 3, 3, norm);
     }
 
     public double[] Sobel(){
