@@ -25,7 +25,7 @@ public class Image {
                 r = (color & 0xff0000) >> 16;
                 g = (color & 0xff00) >> 8;
                 b = color & 0xff;
-                matrix[i*width+j] = (double)(0.299*r + 0.587*g + 0.114*b)/255;
+                matrix[i*width+j] = (0.299*r + 0.587*g + 0.114*b)/255;
                 gray[i*width+j] = (int)(0.299*r + 0.587*g + 0.114*b);
 
             }
@@ -44,6 +44,10 @@ public class Image {
     }
 
     public double GetPixel(int x, int y){
+        if (x < 0) x = -x;
+        if (y < 0) y = -y;
+        if (x >= width) x = 2 * width - x - 1;
+        if (y >= height) y = 2 * height - y - 1;
         return matrix[y*width+x];
     }
 
@@ -199,7 +203,7 @@ public class Image {
                         valuex += augmented_img[i * aug_width + j + position]*kernelx[kernel_counter];
                         valuey += augmented_img[i * aug_width + j + position]*kernely[kernel_counter++];
                     }
-                double value = (double)Math.sqrt(valuex*valuex+valuey*valuey);
+                double value = Math.sqrt(valuex*valuex+valuey*valuey);
                 //if (value < 0) value = 0;
                 //if (value > 255) value = 255;
                 res_matrix[counter++] = value;

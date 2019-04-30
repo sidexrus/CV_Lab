@@ -30,6 +30,7 @@ public class InterestPoint {
         double[] augmented_img = img.ImageSupplement(img.matrix, inc*2+1, inc*2+1);
         int aug_width = img.getWidth() + inc*2;
         int aug_height = img.getHeight() + inc*2;
+        double[] matrix = new double[img.getHeight()*img.getWidth()];
 
         for (int y = 0; y < img.getHeight(); y++) {
             for (int x = 0; x < img.getWidth(); x++) {
@@ -57,9 +58,11 @@ public class InterestPoint {
                         }
                     }
                 }
+                matrix[y*img.getWidth()+x] = Collections.min(local_S);
                 Points.add(new Point(x, y, Collections.min(local_S)));
             }
         }
+
         Points.sort(new Comparator<Point>() {
             @Override
             public int compare(Point o1, Point o2) {
@@ -69,13 +72,15 @@ public class InterestPoint {
             }
         });
 
+        ArrayList<Point> p_new = new ArrayList<Point>();
         for(int i=0; i<Points.size(); i++){
-            if(Points.get(i).value < threshold){
-                Points.remove(i);
-                i--;
+            if(Points.get(i).value >= threshold){
+                p_new.add(Points.get(i));
             }
         }
-
+        Points = p_new;
+        Image img_S = new Image(matrix, img.getHeight(), img.getWidth());
+        Points = localMaximum(Points, img_S);
         Points = anmsFilter(Points, pointsCount);
 
         BufferedImage newImage = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
@@ -84,7 +89,10 @@ public class InterestPoint {
         g.drawImage(img.bufimg, 0, 0, img.getWidth(), img.getHeight(), null);
         BasicStroke bs =new BasicStroke(1);
         g.setStroke(bs);
-        for(int i=0;i<Points.size();i++){
+        int pc=0;
+        if (pointsCount > Points.size()) pc = Points.size();
+        else pc = pointsCount;
+        for(int i=0;i<pc;i++){
             Point p = Points.get(i);
             Ellipse2D.Float circle = new Ellipse2D.Float(p.x, p.y, 3, 3);
             g.setPaint(Color.white);
@@ -102,7 +110,7 @@ public class InterestPoint {
         for (int i = 0; i < points.size(); i++)
             flagUsedPoints[i] = true;
 
-        int radius = 3;
+        int radius = 0;
         int usedPointsCount = points.size();
         while (usedPointsCount > pointsCount)
         {
@@ -114,12 +122,12 @@ public class InterestPoint {
                 }
 
                 Point p1 = points.get(i);
-                for (int j = i + 1; j < points.size(); j++)
+                for (int j = 0; j < points.size(); j++)
                 {
                     if (flagUsedPoints[j])
                     {
                         Point p2 = points.get(j);
-                        if (p1.value * 0.9 > p2.value && Math.sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y)) <= radius)
+                        if ((p1.value > p2.value) && (Math.sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y)) <= radius))
                         {
                             flagUsedPoints[j] = false;
                             usedPointsCount--;
@@ -195,7 +203,7 @@ public class InterestPoint {
             }
         }
 
-        /*
+
         Points.sort(new Comparator<Point>() {
             @Override
             public int compare(Point o1, Point o2) {
@@ -203,15 +211,15 @@ public class InterestPoint {
                 else if (o1.value< o2.value) return 1;
                 else return -1;
             }
-        });*/
+        });
 
+        ArrayList<Point> p_new = new ArrayList<Point>();
         for(int i=0; i<Points.size(); i++){
-            if(Points.get(i).value < threshold){
-                Points.remove(i);
-                i--;
+            if(Points.get(i).value >= threshold){
+                p_new.add(Points.get(i));
             }
         }
-
+        Points = p_new;
         Image img_S = new Image(matrix, img.getHeight(), img.getWidth());
 
         ArrayList<Point> localMaximumPoints = localMaximum(Points, img_S);
@@ -222,7 +230,10 @@ public class InterestPoint {
         g.drawImage(img.bufimg, 0, 0, img.getWidth(), img.getHeight(), null);
         BasicStroke bs =new BasicStroke(1);
         g.setStroke(bs);
-        for(int i=0;i<Points.size();i++){
+        int pc=0;
+        if (pointsCount > Points.size()) pc = Points.size();
+        else pc = pointsCount;
+        for(int i=0;i<pc;i++){
             Point p = Points.get(i);
             Ellipse2D.Float circle = new Ellipse2D.Float(p.x, p.y, 3, 3);
             g.setPaint(Color.white);

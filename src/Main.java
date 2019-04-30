@@ -31,8 +31,8 @@ public class Main {
         //lab3
         InterestPoint ip = new InterestPoint(img3);
         //new Gui().show(ip.HarrisMap(2));
-        new Gui().show(ip.Harris(0.03, 2, 150));
-        //new Gui().show(ip.Moravek(0.03, 2, 150));
+        new Gui().show(ip.Harris(0.01, 2, 40));
+        new Gui().show(ip.Moravek(0.06, 2, 150));
 
     }
 }
