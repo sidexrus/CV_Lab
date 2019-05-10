@@ -1,8 +1,12 @@
 import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.geom.AffineTransform;
 import java.awt.image.*;
 import java.io.ByteArrayOutputStream;
 import java.io.Console;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Random;
 
 public class Image {
 
@@ -11,7 +15,7 @@ public class Image {
     private int width;
     public double[] matrix;
     public int[] gray;
-
+    static int shift = 30;
     public Image(BufferedImage img) {
         height = img.getHeight();
         width = img.getWidth();
@@ -316,5 +320,62 @@ public class Image {
         matrix = NormalizeTo1(result.clone());
 
         return result;
+    }
+
+    public BufferedImage GlueImages(Image img1, Image img2){
+        int Width = img1.getWidth() + img2.getWidth() + shift;
+        int Height;
+        if ((img1.getHeight() > (img2.getHeight() + shift))) {
+            Height = img1.getHeight();
+        } else {
+            Height = img2.getHeight() + shift;
+        }
+        BufferedImage res = new BufferedImage(Width, Height, BufferedImage.TYPE_BYTE_GRAY);
+        width = img1.getWidth();
+        height = img1.getHeight();
+        res.getRaster().setSamples(0,0, img1.getWidth(), img1.getHeight(),0, NormalizeTo255(img1.matrix));
+        width = img2.getWidth();
+        height = img2.getHeight();
+        res.getRaster().setSamples(img1.getWidth()+shift,shift, img2.getWidth(), img2.getHeight(),0, NormalizeTo255(img2.matrix));
+
+        return res;
+    }
+
+    public static BufferedImage DrawLines(ArrayList<DescriptorCreator.Vector> similar, int width, int height, BufferedImage img){
+        BufferedImage res = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_RGB);
+
+        //res.getRaster().setSamples(0,0, img.getWidth(), img.getHeight(),0, img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()));
+        Graphics2D g = res.createGraphics();
+        g.drawImage(img, null, 0, 0);
+        BasicStroke bs =new BasicStroke(1);
+        g.setStroke(bs);
+        for(int i=0; i< similar.size(); i++){
+            int x1 = similar.get(i).first.getInterPoint().x;
+            int y1 = similar.get(i).first.getInterPoint().y;
+            int x2 = similar.get(i).second.getInterPoint().x + shift + width;
+            int y2 = similar.get(i).second.getInterPoint().y + shift;
+            Random rand = new Random();
+            float r = rand.nextFloat();
+            float gr = rand.nextFloat();
+            float b = rand.nextFloat();
+            java.awt.Color cc = new java.awt.Color(r, gr, b);
+            g.setPaint(cc);
+            g.drawLine(x1, y1, x2, y2);
+        }
+        return res;
+    }
+
+    public static BufferedImage Rotate(BufferedImage img, int angle){
+
+        AffineTransform tx = new AffineTransform();
+        double theta = angle*Math.PI/180;
+        tx.translate((float)img.getWidth() / 2, (float)img.getHeight() / 2);
+        tx.rotate(Math.toRadians(angle));
+        tx.translate(-(float)img.getWidth() / 2, -(float)img.getHeight() / 2);
+        AffineTransformOp op = new AffineTransformOp(tx,
+                AffineTransformOp.TYPE_BILINEAR);
+        img = op.filter(img, null);
+
+        return img;
     }
 }

@@ -11,6 +11,7 @@ public class InterestPoint {
         public int x;
         public int y;
         public double value;
+        public double Phi;
         public Point(int x, int y, double val){
             this.x = x;
             this.y = y;
@@ -18,6 +19,7 @@ public class InterestPoint {
         }
     }
     Image img;
+    public Image res;
     ArrayList<Point> Points;
 
     public InterestPoint(Image img){
@@ -203,7 +205,6 @@ public class InterestPoint {
             }
         }
 
-
         Points.sort(new Comparator<Point>() {
             @Override
             public int compare(Point o1, Point o2) {
@@ -235,13 +236,14 @@ public class InterestPoint {
         else pc = pointsCount;
         for(int i=0;i<pc;i++){
             Point p = Points.get(i);
-            Ellipse2D.Float circle = new Ellipse2D.Float(p.x, p.y, 3, 3);
+            Ellipse2D.Float circle = new Ellipse2D.Float(p.x-1, p.y-1, 3, 3);
             g.setPaint(Color.white);
             g.fill(circle);
             g.setPaint(Color.black);
             g.draw(circle);
         }
         g.dispose();
+        res = new Image(newImage);
         return newImage;
     }
 
