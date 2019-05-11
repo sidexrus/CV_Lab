@@ -12,10 +12,25 @@ public class InterestPoint {
         public int y;
         public double value;
         public double Phi;
+        public int z;
+        public double s; // S(x,y) - значение оператора
+        public double sigmaScale;
+        public double sigmaEffect;
+        public double phiRotate;
         public Point(int x, int y, double val){
             this.x = x;
             this.y = y;
             value = val;
+        }
+        public Point(int x, int y, int z, double s, double sigmaScale, double sigmaEffect, double phiRotate)
+        {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.s = s;
+            this.sigmaScale = sigmaScale;
+            this.sigmaEffect = sigmaEffect;
+            this.phiRotate = phiRotate;
         }
     }
     Image img;
@@ -25,6 +40,10 @@ public class InterestPoint {
     public InterestPoint(Image img){
         Points = new ArrayList<>();
         this.img = img;
+    }
+
+    public InterestPoint() {
+        Points = new ArrayList<>();
     }
 
     public BufferedImage Moravek(double threshold, int radius, int pointsCount) {
@@ -311,5 +330,121 @@ public class InterestPoint {
             }
         }
         return result;
+    }
+
+    public ArrayList<Point> blob(ImagePyramid pyramid, double threshold, int radius, int pointsCount)
+    {
+        ArrayList<Point> points = new ArrayList<Point>();
+
+        for (int z = 1; z < pyramid.dogs.size() - 1; z++)
+        {
+            BufferedImage image = pyramid.dogs.get(z).image;
+            double[] dog_matrix = pyramid.dogs.get(z).dog_image;
+            Image imageTrue = new Image(image);
+            double[] image_dx = imageTrue.DerivativeX(false);
+            double[] image_dy = imageTrue.DerivativeY(false);
+            int inc = radius + 1;
+
+            double[] aug_img_dx = imageTrue.ImageSupplement(image_dx, inc*2+1, inc*2+1);
+            double[] aug_img_dy = imageTrue.ImageSupplement(image_dy, inc*2+1, inc*2+1);
+            //Image image_dx = ImageConverter.convolution(imageTrue, kernel_x);
+            //Image image_dy = ImageConverter.convolution(imageTrue, kernel_y);
+
+            for (int i = 1; i < image.getWidth() - 1; i++)
+            {
+                for (int j = 1; j < image.getHeight() - 1; j++)
+                {
+                    if (isExtremum(pyramid, i, j, z)) //проверим, минимум или максимум в 3D
+                    {
+                        //if (pyramid.dogs.get(z).img.getData().getSample(i, j, 0) < 1)
+                            //continue;
+                        if (pyramid.dogs.get(z).dog_image[i + j*pyramid.dogs.get(z).image.getWidth()] < 0.0003)
+                            continue;
+
+                        // check harris
+                        double val = pyramid.dogs.get(z).sigma / pyramid.dogs.get(0).sigma;
+                        double lambdaMin = lambda(aug_img_dx, aug_img_dy, i, j, (int)Math.round(radius * val),
+                                image.getWidth(), inc);
+                        if (lambdaMin < threshold)
+                            continue; // skip - haris to low
+                        //double x = i * pyramid.dogs.get(0).image.getWidth() / pyramid.dogs.get(z).image.getWidth();
+                        //double y = j * pyramid.dogs.get(0).image.getHeight() / pyramid.dogs.get(z).image.getHeight();
+                        points.add(new Point((int)i, (int)j, z, lambdaMin, pyramid.dogs.get(z).sigma,
+                                pyramid.dogs.get(z).effective_sigma, 0));
+                    }
+                }
+            }
+        }
+
+        points.sort(new Comparator<Point>() {
+            @Override
+            public int compare(Point o1, Point o2) {
+                if (o1.s == o2.s) return 0;
+                else if (o1.s < o2.s) return 1;
+                else return -1;
+            }
+        });
+/*
+        ArrayList<Point> p_new = new ArrayList<Point>();
+        for(int i=0; i<points.size(); i++){
+                p_new.add(points.get(i));
+                pointsCount--;
+                if(pointsCount<=0) break;
+        }
+        points = p_new;
+*/
+        // Сортируем и оборезаем если нужно
+        //points.Sort(Compare);
+        //return correctPosition(points, pyramid);
+        return points;
+    }
+
+    public boolean isExtremum(ImagePyramid pyramid, int x, int y, int z)
+    {
+        if (pyramid.dogs.get(z - 1).octave == pyramid.dogs.get(z + 1).octave)
+        {
+            boolean min = true, max = true;
+            double center = pyramid.dogs.get(z).dog_image[x + y*pyramid.dogs.get(z).image.getWidth()];
+
+            // ищем в 3D
+            for (int i = -1; i <= 1; i++)
+            {
+                for (int j = -1; j <= 1; j++)
+                {
+                    for (int k = -1; k <= 1; k++)
+                    {
+                        if (i == 0 && j == 0 && k == 0)
+                        {
+                            continue;   //skip center
+                        }
+                        double value = pyramid.dogs.get(z + k).dog_image[(x + i) + (y+j)*pyramid.dogs.get(z+k).image.getWidth()];
+                        if (value >= center) max = false;
+                        if (value <= center) min = false;
+                    }
+                }
+            }
+
+            return max || min;
+        }
+        return false;
+    }
+
+    public double lambda(double[] image_dx, double[] image_dy, int x, int y, int radius, int width, int inc)
+    {
+        int aug_width = width + inc*2;
+        double A = 0, B = 0, C = 0;
+        for (int i = x - radius; i < x + radius; i++)
+        {
+            for (int j = y - radius; j < y + radius; j++)
+            {
+                double curA = image_dx[(j+inc)*aug_width + i+inc];
+                double curB = image_dy[(j+inc)*aug_width + i+inc];
+                A += curA * curA;
+                B += curA * curB;
+                C += curB * curB;
+            }
+        }
+        double descreminant = Math.sqrt((A - C) * (A - C) + 4 * B * B);
+        return Math.min(Math.abs((A + C - descreminant) / 2), Math.abs((A + C + descreminant) / 2));
     }
 }

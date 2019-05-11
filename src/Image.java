@@ -1,6 +1,7 @@
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Ellipse2D;
 import java.awt.image.*;
 import java.io.ByteArrayOutputStream;
 import java.io.Console;
@@ -11,11 +12,14 @@ import java.util.Random;
 public class Image {
 
     public BufferedImage bufimg;
-    private int height;
-    private int width;
+    public int height;
+    public int width;
     public double[] matrix;
     public int[] gray;
-    static int shift = 30;
+    static int shift = 0;
+    public Image(double[] matrix){
+        this.matrix = matrix;
+    }
     public Image(BufferedImage img) {
         height = img.getHeight();
         width = img.getWidth();
@@ -128,6 +132,7 @@ public class Image {
             }
         if(norm) {
             res_matrix = NormalizeTo255(res_matrix);
+            bufimg = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
             bufimg.getRaster().setSamples(0, 0, width, height, 0, res_matrix);
             matrix = NormalizeTo1(res_matrix.clone());
         }
@@ -139,14 +144,14 @@ public class Image {
         double max = 0;
         boolean f = false;
 
-        for(int i=0; i<width*height; i++){
+        for(int i=0; i<matrix.length; i++){
             if(min>matrix[i]) min = matrix[i];
             if(max<matrix[i]) max = matrix[i];
         }
 
         double DivDifference = 255/(max - min);
         if (min < 0) f = true;
-        for(int i=0; i<width*height; i++){
+        for(int i=0; i<matrix.length; i++){
             if (f) matrix[i] += Math.abs(min);
             matrix[i] *=DivDifference;
             if (matrix[i] < 0) matrix[i] = 0;
@@ -254,9 +259,10 @@ public class Image {
                 //if (value > 255) value = 255;
                 res_matrix[counter++] = (double) value;
             }
+        matrix = res_matrix.clone();
         res_matrix = NormalizeTo255(res_matrix);
         bufimg.getRaster().setSamples(0,0, width, height,0, res_matrix);
-        matrix = NormalizeTo1(res_matrix.clone());
+        //matrix = NormalizeTo1(res_matrix.clone());
         return  res_matrix;
     }
 
@@ -313,12 +319,44 @@ public class Image {
 
         width = res_width;
         height = res_height;
+        matrix = result.clone();
         result = NormalizeTo255(result);
         bufimg = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_BYTE_GRAY);
         bufimg.getRaster().setSamples(0,0, res_width, res_height,0, result);
+        return result;
+    }
 
-        matrix = NormalizeTo1(result.clone());
+    public double[] bilinearHalfReduce()
+    {
+        int res_width = (int)width/2;
+        int res_height = (int)height/2;
+        double x_koef = width / (width / 2);
+        double y_koef = height / (height / 2);
+        double[] result = new double[res_width*res_height];
+        for (int i = 0; i < res_width; i++)
+        {
+            for (int j = 0; j < res_height; j++)
+            {
 
+                int x = (int) x_koef * i;
+                int y = (int) y_koef * j;
+                double x_ost = (x_koef * i) - x;
+                double y_ost = (y_koef * j) - y;
+
+                double p1 = matrix[y*width+x] * (1 - x_ost) * (1 - y_ost);
+                double p2 = matrix[y*width+x+1] * (x_ost) * (1 - y_ost);
+                double p3 = matrix[(y+1)*width+x] * (1 - x_ost) * (y_ost);
+                double p4 = matrix[(y+1)*width+x+1] * (x_ost * y_ost);
+                result[i+j*res_width] = p1 + p2 + p3 + p4;
+                //resultImage.setPixel(i, j, p1 + p2 + p3 + p4);
+            }
+        }
+        width = res_width;
+        height = res_height;
+        matrix = result.clone();
+        result = NormalizeTo255(result);
+        bufimg = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+        bufimg.getRaster().setSamples(0,0, res_width, res_height,0, result);
         return result;
     }
 
@@ -330,13 +368,13 @@ public class Image {
         } else {
             Height = img2.getHeight() + shift;
         }
-        BufferedImage res = new BufferedImage(Width, Height, BufferedImage.TYPE_BYTE_GRAY);
+        BufferedImage res = new BufferedImage(Width, Height+40, BufferedImage.TYPE_BYTE_GRAY);
         width = img1.getWidth();
         height = img1.getHeight();
         res.getRaster().setSamples(0,0, img1.getWidth(), img1.getHeight(),0, NormalizeTo255(img1.matrix));
         width = img2.getWidth();
         height = img2.getHeight();
-        res.getRaster().setSamples(img1.getWidth()+shift,shift, img2.getWidth(), img2.getHeight(),0, NormalizeTo255(img2.matrix));
+        res.getRaster().setSamples(img1.getWidth()+shift, shift, img2.getWidth(), img2.getHeight(),0, NormalizeTo255(img2.matrix));
 
         return res;
     }
@@ -365,6 +403,71 @@ public class Image {
         return res;
     }
 
+    public static BufferedImage DrawLinesAndCircles(ArrayList<DescriptorCreator.Vector> similar, int width, BufferedImage img){
+        BufferedImage res = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_RGB);
+
+        //res.getRaster().setSamples(0,0, img.getWidth(), img.getHeight(),0, img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()));
+        Graphics2D g = res.createGraphics();
+        g.drawImage(img, null, 0, 0);
+        BasicStroke bs =new BasicStroke(1);
+        g.setStroke(bs);
+        for(int i=0; i< similar.size(); i++){
+            int x1 = similar.get(i).first.getInterPoint().x;
+            int y1 = similar.get(i).first.getInterPoint().y;
+            int x2 = similar.get(i).second.getInterPoint().x + shift + width;
+            int y2 = similar.get(i).second.getInterPoint().y + shift;
+            Random rand = new Random();
+            float r = rand.nextFloat();
+            float gr = rand.nextFloat();
+            float b = rand.nextFloat();
+            java.awt.Color cc = new java.awt.Color(r, gr, b);
+            g.setPaint(cc);
+            g.drawLine(x1, y1, x2, y2);
+
+            InterestPoint.Point p1 = similar.get(i).first.getInterPoint();
+            InterestPoint.Point p2 = similar.get(i).second.getInterPoint();
+            // Circle 1
+            double radius1 = Math.sqrt(2) * p1.sigmaEffect;
+            g.draw(new Ellipse2D.Double(p1.x - radius1, p1.y - radius1, 2 * radius1, 2 * radius1));
+
+
+            // Circle 2
+            double radius2 = Math.sqrt(2) * p2.sigmaEffect;
+            g.draw(new Ellipse2D.Double(p2.x+shift + width - radius1, p2.y +shift- radius1, 2 * radius2, 2 * radius2));
+
+        }
+        return res;
+    }
+
+    public static BufferedImage DrawCircles(ArrayList<InterestPoint.Point> similar, int width, BufferedImage img){
+        BufferedImage res = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_RGB);
+
+        //res.getRaster().setSamples(0,0, img.getWidth(), img.getHeight(),0, img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()));
+        Graphics2D g = res.createGraphics();
+        g.drawImage(img, null, 0, 0);
+        BasicStroke bs =new BasicStroke(1);
+        g.setStroke(bs);
+        for(int i=0; i< similar.size(); i++){
+            int x1 = similar.get(i).x;
+            int y1 = similar.get(i).y;
+            Random rand = new Random();
+            float r = rand.nextFloat();
+            float gr = rand.nextFloat();
+            float b = rand.nextFloat();
+            java.awt.Color cc = new java.awt.Color(r, gr, b);
+            g.setPaint(cc);
+
+            InterestPoint.Point p1 = similar.get(i);
+
+            // Circle 1
+            double radius1 = Math.sqrt(2) * p1.sigmaEffect;
+            g.draw(new Ellipse2D.Double(p1.x - radius1, p1.y - radius1, 2 * radius1, 2 * radius1));
+
+
+        }
+        return res;
+    }
+
     public static BufferedImage Rotate(BufferedImage img, int angle){
 
         AffineTransform tx = new AffineTransform();
@@ -377,5 +480,37 @@ public class Image {
         img = op.filter(img, null);
 
         return img;
+    }
+
+    public static double[] getGaussDoubleDim(int width, int height, double sigma)
+    {
+        // Tmp vars
+        double sum = 0.0;
+        double doubleSigma = 2 * sigma * sigma;
+        double mainKoef = 1.0 / (doubleSigma * Math.PI);
+        double halfWidth = width / 2;
+        double halfHeight = height / 2;
+
+        double [] core = new double[width* height];
+        for (int i = 0; i < width; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                core[i + j * width] =
+                        mainKoef * Math.exp(((i - halfWidth) * (i - halfWidth) + (j - halfHeight) * (j - halfHeight)) *
+                                (-1.0 / doubleSigma));
+                sum += core[i + j * width];
+            }
+        }
+
+        // Normalize
+        for (int i = 0; i < width; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                core[i + j * width] /= sum;
+            }
+        }
+        return core;
     }
 }
